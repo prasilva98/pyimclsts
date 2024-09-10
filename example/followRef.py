@@ -64,10 +64,15 @@ class FollowRef_Vehicle():
 
 if __name__ == '__main__':
     
+    # This creates a TCP_interface which in fact is just a really contrived way of creating a bunch of read/write functions 
+    # using the diabolical asyncio.open_connection()
     conn = p.tcp_interface('localhost', 6006)
-    vehicle = FollowRef_Vehicle('lauv-xplore-2')
-
+    # You then give this open connection to the subscriber, which really, from what I understand just limits our functionality
+    # to reading from the connection
     sub = p.subscriber(conn)
+    
+    # This is just an object to keep track of all the info related with the vehicle. 
+    vehicle = FollowRef_Vehicle('lauv-xplore-2')
 
     # Set a delay, so that we receive the Announcements
     sub.call_once(vehicle.request_followRef, 5)
@@ -77,7 +82,7 @@ if __name__ == '__main__':
     sub.subscribe_async(vehicle.update_plan_state, pg.messages.FollowReference)
 
     sub.periodic_async(vehicle.send_refs, 1)
-
+    
     #sub.periodic_async(lambda _ : print(vehicle.peers), 1)
 
     sub.run()

@@ -44,35 +44,49 @@ class table():
         message_abbrev = msg.Attributes.abbrev
         src = msg._header.src
         src_ent = msg._header.src_ent
-        
+        # Must parse the message based on the src_ent 
         data = tolist(msg)
         data = [[time, message_abbrev, src, src_ent, *d] for d in data] # i don't think it expects a list with more than 1 item.
         self.datatable += data
 
     def update_state(self, msg, callback):
         time = msg._header.timestamp
-            
-        point = [msg.lat, msg.lon, msg.depth, time]
-        
+        point = [msg.lat, msg.lon, msg.depth, time]     
         self.estimated_states.append(point)
+        print(point)
+
+    def write_to_file(self):
+        
+        positions = pd.DataFrame(w.estimated_states, columns=['lat', 'lon', 'depth', 'timestamp'])
+        values = pd.DataFrame(w.datatable, columns=['timestamp', 'message', 'src', 'src_ent','field', 'value'])
+
+        values.to_csv(self.file_name)
+        positions.to_csv(self.file_name)
+            
+
+
 
 if __name__ == '__main__':
     
     w = table('output.csv')
 
-    src_file = 'Data(1).lsf'
+    src_file = 'in_data/lauv_xplore_1_20170813_full.lsf'
     sub = n.subscriber(n.file_interface(input = src_file), use_mp=True)
 
-    sub.subscribe_async(w.writetotable, msg_id =pg.messages.Temperature, src='lauv-noptilus-1', src_ent='AHRS')
-    sub.subscribe_async(w.update_state, msg_id =pg.messages.EstimatedState, src='lauv-noptilus-1', src_ent=None)
+    sub.subscribe_async(w.writetotable, msg_id =pg.messages.Temperature, src='lauv-xplore-1', src_ent=None)
+    sub.subscribe_async(w.update_state, msg_id =pg.messages.EstimatedState, src='lauv-xplore-1', src_ent=None)
+
+    # To check on everything
+    #sub.subscribe_async(w.print_contents, src='lauv-xplore-1', src_ent=None, msg_id=None)
 
     sub.run()
 
-    positions = pd.DataFrame(w.estimated_states, columns=['lat', 'lon', 'depth', 'timestamp'])
-    values = pd.DataFrame(w.datatable, columns=['timestamp', 'message', 'src', 'src_ent','field', 'value'])
+    w.write_to_file()
+    
 
+    """
     interpolator = lambda x, key : np.interp(x, positions['timestamp'], positions[key])
-
+    
     keys = ['lat', 'lon', 'depth']
     for k in keys:
         values[k] = interpolator(values['timestamp'], k)
@@ -85,3 +99,5 @@ if __name__ == '__main__':
     #netcdf_DS.timestamp.attrs['oi'] = 'oi'
     
     #xra.open_dataset(netcdf_DS.to_netcdf())
+
+    """
