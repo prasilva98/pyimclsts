@@ -35,8 +35,7 @@ def gather_log_paths(log_path):
     return lsf_files
 ## Export all log files 
 def export_logs(all_logs):
-
-        
+   
     try:
         print("## Exporting all log files ## \n {}".format(all_logs))
         for f in all_logs:
@@ -72,6 +71,7 @@ def concatenate_logs(all_logs):
 
             with open(data_file, 'rb') as f_in:
                 shutil.copyfileobj(f_in, f_out)
+
 ## Parse all of those logs
 def parse_logs(all_logs):
 
@@ -93,9 +93,7 @@ def parse_logs(all_logs):
         positions = pd.DataFrame(w.estimated_states, columns=['lat', 'lon', 'depth', 'timestamp'])
         values = pd.DataFrame(w.datatable, columns=['timestamp', 'message', 'src', 'src_ent','field', 'value'])
 
-    
 # \copy lauvxplore1 from 'output.csv' delimiter E'\x01';
-
 def tolist(msg_or_value) -> list:
     if isinstance(msg_or_value, pg.messages.IMC_message):
         fields = msg_or_value.Attributes.fields
@@ -118,9 +116,14 @@ class table():
         # erases the file if it exists, creates it otherwise
         with open(f, 'w'):
             pass
-
+        
+        ## This will have to be seperated 
         self.datatable = []
+        self.temperature = []
         self.estimated_states = []
+        self.sound_speed = []
+        self.conductivity = []
+        self.salinity = []
             
     def writetotable(self, msg, callback) -> str:
         
@@ -133,21 +136,58 @@ class table():
         data = [[time, message_abbrev, src, src_ent, *d] for d in data] # i don't think it expects a list with more than 1 item.
         self.datatable += data
 
-    def update_state(self, msg, callback):
+    def update_temperature(self, msg, callback):
+
         time = msg._header.timestamp
-            
-        point = [msg.lat, msg.lon, msg.depth, time]
+        temp = [time, msg.value]
+        self.temperature.append(temp)
+
+    def update_state(self, msg, callback):
         
+        time = msg._header.timestamp
+        vel =  [msg.vx, msg.vy, msg.vz]
+        vel = np.linalg.norm(vel)
+        point = [time, msg.lat, msg.lon, msg.depth, msg.phi, msg.theta, msg.psi, vel]
         self.estimated_states.append(point)
 
-    def write_to_file(self):
+    def update_sound_speed(self, msg, callback):
+
+        time = msg._header.timestamp
+        sspeed = [time, msg.value]
+        self.sound_speed.append(sspeed)
+
+    def update_conductivity(self, msg, callback):
+
+        time = msg._header.timestamp
+        conductivity  = [time, msg.value]
+        self.conductivity.append(conductivity)
+        print(conductivity)
     
-        positions = pd.DataFrame(self.estimated_states, columns=['lat', 'lon', 'depth', 'timestamp'])
+    def update_salinity(self, msg, callback):
+        
+        time = msg._header.timestamp
+        salinity = [time, msg.value]
+        self.salinity.append(salinity)
+
+    def write_to_file(self):
+        
+        # Write to a file type shit
+        positions = pd.DataFrame(self.estimated_states, columns=['TIME', 'LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PCTH', 'HDNG', 'APSA'])
+        temperatures = pd.DataFrame(self.temperature, columns=['TIME', 'TEMP'])
+        sound_speed = pd.DataFrame(self.sound_speed, columns=['TIME', 'SVEL'])
+        conductivity = pd.DataFrame(self.conductivity, columns=['TIME', 'CNDC'])
+        salinity = pd.DataFrame(self.salinity, columns=['TIME', 'PSAL'])
+
         values = pd.DataFrame(self.datatable, columns=['timestamp', 'message', 'src', 'src_ent','field', 'value'])
 
-        values.to_csv(self.file_name)
-        positions.to_csv(self.file_name)
-        
+        with pd.ExcelWriter(self.file_name, engine='xlsxwriter') as writer:
+
+            positions.to_excel(writer, sheet_name='VehicleState')
+            temperatures.to_excel(writer, sheet_name='TEMP')
+            sound_speed.to_excel(writer, sheet_name='SVEL')
+            conductivity.to_excel(writer, sheet_name='CNDC')
+            salinity.to_excel(writer, sheet_name='PSAL')
+            
 class cdfFile():
 
     def __init__(self, f : str) -> None:
@@ -208,12 +248,23 @@ if __name__ == '__main__':
     if start_time:
         if len(start_time) != 6:
             sys.exit()
+            
+    # cdf_file = cdfFile()
+    csv_file = table('output.xlsx')
 
-    csv_file = cdfFile()
-    csv_file = table('output.csv')
+    # Subscribe to the actual file
+    src_file = 'in_data/Data.lsf'
 
-    src_file = 'lauv_xplore_1_20170813_full.lsf'
     sub = n.subscriber(n.file_interface(input = src_file), use_mp=True)
+
+    # Subscribe to specific variables and save them
+    sub.subscribe_async(csv_file.update_state, msg_id =pg.messages.EstimatedState, src='lauv-xplore-2', src_ent=None)
+    sub.subscribe_async(csv_file.update_temperature, msg_id =pg.messages.Temperature, src='lauv-xplore-2', src_ent='CTD')
+    sub.subscribe_async(csv_file.update_sound_speed, msg_id=pg.messages.SoundSpeed, src='lauv-xplore-2', src_ent='CTD')
+    sub.subscribe_async(csv_file.update_conductivity, msg_id=pg.messages.Conductivity, src='lauv-xplore-2', src_ent='CTD')
+    sub.subscribe_async(csv_file.update_salinity, msg_id=pg.messages.Salinity, src='lauv-xplore-2', src_ent='CTD')
+
+    sub.run()
 
     csv_file.write_to_file()
 

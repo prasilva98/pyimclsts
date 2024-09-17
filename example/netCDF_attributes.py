@@ -80,8 +80,10 @@ xrds = xr.Dataset(
 for var_name, var_data in var_dict.items():
    xrds[var_name].attrs = var_data
 
+print(var_dict)
+
 for coor_name, coor_data in coor_dict.items():
    xrds[coor_name].attrs = coor_data
 
+print(xrds_example['PSAL'].attrs)
 
-print(xrds['TIME'].attrs)
