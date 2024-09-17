@@ -33,9 +33,9 @@ def gather_log_paths(log_path):
         print("Error While Looking for .Data.lsf.gz. {}".format(log_path))
 
     return lsf_files
-
 ## Export all log files 
 def export_logs(all_logs):
+
         
     try:
         print("## Exporting all log files ## \n {}".format(all_logs))
@@ -58,7 +58,6 @@ def export_logs(all_logs):
     except OSError as e:
 
         print("Not able to read file: {} \n Error: {}".format(e, f))
-
 ## Concantenate all those given logs
 def concatenate_logs(all_logs):
 
@@ -73,7 +72,7 @@ def concatenate_logs(all_logs):
 
             with open(data_file, 'rb') as f_in:
                 shutil.copyfileobj(f_in, f_out)
-
+## Parse all of those logs
 def parse_logs(all_logs):
 
     print("Parsing the Log and Creating csf File")
@@ -155,6 +154,9 @@ class cdfFile():
 
         '''f is file name'''
         self.file_name = f
+        self.data_attrs = {}
+        self.coor_attrs = {}
+        self.data_attrs = {}
         # erases the file if it exists, creates it otherwise
         with open(f, 'w'):
             pass
@@ -163,10 +165,19 @@ class cdfFile():
         self.xrds = xr.Dataset
         # Load global attributes from json
         with open('metadata/global_attributes', 'r') as f:
-            dic = json.load(f)
-        
+            self.global_attrs = json.load(f)
+        # Load coordinates attributes from json
+        with open('metadata/var_dict.json', 'r') as f:
+            self.coor_attrs = json.load(f)
+        # Load data attributes from json
+        with open('metadata/var_dict.json', 'r') as f:
+            self.data_attrs = json.load(f)
         # Save it in the dataset attrbutes
-        self.xrds.attrs = dic
+        #self.xrds.attrs = global_attrs
+    
+    def start_saving_data():
+
+        print("Start saving data")
 
 
 if __name__ == '__main__':
