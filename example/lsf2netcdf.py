@@ -19,7 +19,7 @@ def gather_log_paths(log_path):
     lsf_files = []
     
     try:
-        print("## Concatenation Start ##")
+        print("## Gathering all paths to Data files ##")
         for root, dirs, files in os.walk(log_path):
 
             for file in files: 
@@ -31,6 +31,8 @@ def gather_log_paths(log_path):
     except OSError:
 
         print("Error While Looking for .Data.lsf.gz. {}".format(log_path))
+    
+    print("List of compressed files gathered: \n {}".format(lsf_files))
 
     return lsf_files
 ## Export all log files 
@@ -38,25 +40,30 @@ def export_logs(all_logs):
    
     try:
         print("## Exporting all log files ## \n {}".format(all_logs))
+
         for f in all_logs:
+        
                 # Open the compressed 
                 comp_log = f + '/' + 'Data.lsf.gz'
                 uncomp_log =  f + '/' + 'Data.lsf'
-                print(comp_log)
+
+                # Check if given log was already decompressed 
+                if os.path.isfile(uncomp_log):
+
+                    print("File {} was already decompressed".format(f))
+                    continue
 
                 with gzip.open(comp_log, 'rb') as f_in:
 
-                    f_in.read(1)
-                    print("{} Sucessfully Opened ".format(os.path.basename(comp_log)))
-
                     # Decompress it
-                    with gzip.open(uncomp_log, 'wb') as f_out:
+                    with open(uncomp_log, 'wb') as f_out:
 
                         shutil.copyfileobj(f_in, f_out)
 
     except OSError as e:
-
+        
         print("Not able to read file: {} \n Error: {}".format(e, f))
+
 ## Concantenate all those given logs
 def concatenate_logs(all_logs):
 
@@ -71,27 +78,6 @@ def concatenate_logs(all_logs):
 
             with open(data_file, 'rb') as f_in:
                 shutil.copyfileobj(f_in, f_out)
-
-## Parse all of those logs
-def parse_logs(all_logs):
-
-    print("Parsing the Log and Creating csf File")
-
-    for f in all_logs:
-
-        f_in = f + '/' + 'Data.lsf'
-        src_file = f + '/' + 'output.csv'
-        w = table(src_file)
-
-        sub = n.subscriber(n.file_interface(input = src_file), use_mp=True)
-
-        sub.subscribe_async(w.writetotable, msg_id =pg.messages.Temperature, src='lauv-noptilus-1', src_ent=None)
-        sub.subscribe_async(w.update_state, msg_id =pg.messages.EstimatedState, src='lauv-noptilus-1', src_ent=None)
-
-        sub.run()
-
-        positions = pd.DataFrame(w.estimated_states, columns=['lat', 'lon', 'depth', 'timestamp'])
-        values = pd.DataFrame(w.datatable, columns=['timestamp', 'message', 'src', 'src_ent','field', 'value'])
 
 # \copy lauvxplore1 from 'output.csv' delimiter E'\x01';
 def tolist(msg_or_value) -> list:
@@ -124,30 +110,42 @@ class table():
         self.sound_speed = []
         self.conductivity = []
         self.salinity = []
-            
-    def writetotable(self, msg, callback) -> str:
+        self.turbidity = []
+        self.chloro = []
+        self.name = 'NoName'
+
+        ## Usefull for parsing 
+        self.sensor_ent = -1
+    
+    def get_system_name(self, msg, callback):
         
-        time = msg._header.timestamp
-        message_abbrev = msg.Attributes.abbrev
-        src = msg._header.src
-        src_ent = msg._header.src_ent
-        
-        data = tolist(msg)
-        data = [[time, message_abbrev, src, src_ent, *d] for d in data] # i don't think it expects a list with more than 1 item.
-        self.datatable += data
+        if self.name == 'NoName':
+            self.name = msg.sys_name
 
     def update_temperature(self, msg, callback):
 
         time = msg._header.timestamp
-        temp = [time, msg.value]
+        src_ent = msg._header.src_ent
+        temp = [time, src_ent, msg.value]
         self.temperature.append(temp)
-
+        
     def update_state(self, msg, callback):
         
         time = msg._header.timestamp
-        vel =  [msg.vx, msg.vy, msg.vz]
-        vel = np.linalg.norm(vel)
-        point = [time, msg.lat, msg.lon, msg.depth, msg.phi, msg.theta, msg.psi, vel]
+
+        # Turn the roll, pitch, yaw into readable degrees
+        phi = np.rad2deg(np.arctan2(np.sin(msg.phi), np.cos(msg.phi)))
+        theta = np.rad2deg(np.arctan2(np.sin(msg.theta), np.cos(msg.theta)))
+        psi = np.rad2deg(np.arctan2(np.sin(msg.psi), np.cos(msg.psi)))
+
+        # Calculate the velocity over ground magniute (dont take into account z axis)
+        ground_speed =  [msg.vx, msg.vy]
+        ground_speed = np.linalg.norm(ground_speed)
+
+        # Calculate course over ground
+        course_ground = np.rad2deg(np.arctan2(msg.vy, msg.vx))
+
+        point = [time, msg.lat, msg.lon, msg.depth, phi, theta, psi, ground_speed, course_ground]
         self.estimated_states.append(point)
 
     def update_sound_speed(self, msg, callback):
@@ -159,9 +157,23 @@ class table():
     def update_conductivity(self, msg, callback):
 
         time = msg._header.timestamp
-        conductivity  = [time, msg.value]
+        src_ent = msg._header.src_ent
+        conductivity  = [time, src_ent, msg.value]
         self.conductivity.append(conductivity)
-        print(conductivity)
+
+    # Turbidity may or may not exist depending on the vehicle
+    def update_turbidity(self, msg, callback):
+
+        time = msg._header.timestamp
+        turbidity  = [time, msg.value]
+        self.turbidity.append(turbidity)
+    
+    # Chlorophyll may also exist or not depending on the vehicle
+    def update_chloro(self, msg, callback):
+
+        time = msg._header.timestamp
+        chloro = [time, msg.value]
+        self.chloro.append(chloro)
     
     def update_salinity(self, msg, callback):
         
@@ -169,24 +181,111 @@ class table():
         salinity = [time, msg.value]
         self.salinity.append(salinity)
 
+    
+    def merge_data(self):
+
+        cols = ['TIME','LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PCTH', 'HDNG', 'APSA', 'APDA', 'TEMP', 'CNDC', 'SVEL', 'PSAL']
+        
+        # Do a sanity check and look for the sensor gathering oceanographic data
+        # Also merge data by lowest frequency data 
+
+        if self.df_sound_speed.isnull().all().all():
+            print("No Sound Speed values found in {}".format(self.file_name))
+  
+        if self.df_conductivity.isnull().all().all():
+            print("No Conductity values found in {}".format(self.file_name))
+
+        else:
+            self.sensor_ent = self.df_conductivity.loc[1, 'SRC_ENT']
+            self.df_all_data = pd.merge_asof(self.df_sound_speed, self.df_conductivity, on='TIME', 
+                                            direction='nearest', suffixes=('_df1', '_df2'))
+
+        if self.sensor_ent != -1:
+
+            if self.df_temperatures.isnull().all().all():
+
+                print("No Temperature values found in {}".format(self.file_name))
+
+            else:
+
+                self.df_temperatures = self.df_temperatures[self.df_temperatures['SRC_ENT'] == self.sensor_ent]
+                self.df_temperatures = self.df_temperatures.drop('SRC_ENT', axis=1)
+                self.df_all_data = self.df_all_data.drop('SRC_ENT', axis=1)
+
+                self.df_all_data = pd.merge_asof(self.df_all_data, self.df_temperatures, on='TIME', 
+                                                direction='nearest', suffixes=('_df1', '_df2') )
+        
+        else:
+            print("No usable entity found for temperature data on {}".format(self.file_name))
+
+        if self.df_salinity.isnull().all().all():
+            print("No Salinity values found in {}".format(self.file_name))
+        
+        else:
+            self.df_all_data = pd.merge_asof(self.df_all_data, self.df_salinity, on='TIME',
+                                            direction='nearest', suffixes=('_df1', '_df2'))
+        
+        if self.df_chloro.isnull().all().all():
+            print("No Chlorophyll values found in {}".format(self.file_name))
+
+        else:
+            self.df_all_data = pd.merge_asof(self.df_all_data, self.df_chloro, on='TIME',
+                                            direction='nearest', suffixes=('_df1', '_df2'))
+            cols.append('CPWC')
+            
+        
+        if self.df_turbidity.isnull().all().all():
+            print("No Turbidity values found in {}".format(self.file_name))
+
+        else:
+            self.df_all_data = pd.merge_asof(self.df_all_data, self.df_turbidity, on='TIME',
+                                             direction='nearest', suffixes=('_df1', '_df2'))
+            cols.append('TSED')
+        
+        if self.df_positions.isnull().all().all():
+            print("No Positions values found in {}".format(self.file_name))
+
+        else:
+            self.df_all_data = pd.merge_asof(self.df_all_data, self.df_positions, on='TIME',
+                                             direction='nearest', suffixes=('_df1', '_df2'))
+        
+        # Rearrange positions dataframe for better visibility
+        self.df_all_data = self.df_all_data[cols]
+        print(self.df_all_data)
+
+        
     def write_to_file(self):
         
-        # Write to a file type shit
-        positions = pd.DataFrame(self.estimated_states, columns=['TIME', 'LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PCTH', 'HDNG', 'APSA'])
-        temperatures = pd.DataFrame(self.temperature, columns=['TIME', 'TEMP'])
-        sound_speed = pd.DataFrame(self.sound_speed, columns=['TIME', 'SVEL'])
-        conductivity = pd.DataFrame(self.conductivity, columns=['TIME', 'CNDC'])
-        salinity = pd.DataFrame(self.salinity, columns=['TIME', 'PSAL'])
+        # Save the variables in a dataframe for easier parsing
+        self.df_positions = pd.DataFrame(self.estimated_states, columns=['TIME', 'LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PCTH', 'HDNG', 'APSA', 'APDA'])
+        self.df_positions = self.df_positions.sort_values(by='TIME')
 
-        values = pd.DataFrame(self.datatable, columns=['timestamp', 'message', 'src', 'src_ent','field', 'value'])
+        self.df_temperatures = pd.DataFrame(self.temperature, columns=['TIME','SRC_ENT', 'TEMP'])
+        self.df_temperatures = self.df_temperatures.sort_values(by='TIME')
+
+        self.df_conductivity = pd.DataFrame(self.conductivity, columns=['TIME','SRC_ENT', 'CNDC'])
+        self.df_conductivity = self.df_conductivity.sort_values(by='TIME')
+
+        self.df_sound_speed = pd.DataFrame(self.sound_speed, columns=['TIME', 'SVEL'])
+        self.df_sound_speed = self.df_sound_speed.sort_values(by='TIME')
+
+        self.df_salinity = pd.DataFrame(self.salinity, columns=['TIME', 'PSAL'])
+        self.df_salinity = self.df_salinity.sort_values(by='TIME')
+
+        self.df_turbidity = pd.DataFrame(self.turbidity, columns=['TIME', 'TSED'])
+        self.df_turbidity = self.df_turbidity.sort_values(by='TIME')
+
+
+        self.df_chloro =  pd.DataFrame(self.chloro, columns=['TIME', 'CPWC'])
+        self.df_chloro = self.df_chloro.sort_values(by='TIME')
+
+        self.merge_data()
 
         with pd.ExcelWriter(self.file_name, engine='xlsxwriter') as writer:
 
-            positions.to_excel(writer, sheet_name='VehicleState')
-            temperatures.to_excel(writer, sheet_name='TEMP')
-            sound_speed.to_excel(writer, sheet_name='SVEL')
-            conductivity.to_excel(writer, sheet_name='CNDC')
-            salinity.to_excel(writer, sheet_name='PSAL')
+            self.df_all_data.to_excel(writer, sheet_name='DATA')
+
+
             
 class cdfFile():
 
@@ -204,7 +303,7 @@ class cdfFile():
         # Create a base xarray dataset
         self.xrds = xr.Dataset
         # Load global attributes from json
-        with open('metadata/global_attributes', 'r') as f:
+        with open('metadata/global_attributes.json', 'r') as f:
             self.global_attrs = json.load(f)
         # Load coordinates attributes from json
         with open('metadata/var_dict.json', 'r') as f:
@@ -248,24 +347,45 @@ if __name__ == '__main__':
     if start_time:
         if len(start_time) != 6:
             sys.exit()
-            
-    # cdf_file = cdfFile()
-    csv_file = table('output.xlsx')
 
-    # Subscribe to the actual file
-    src_file = 'in_data/Data.lsf'
+    ## Find all Data.lsf.gz
+    compressed_files_path = gather_log_paths(mission_path)
 
-    sub = n.subscriber(n.file_interface(input = src_file), use_mp=True)
+    compressed_files_path.sort()
 
-    # Subscribe to specific variables and save them
-    sub.subscribe_async(csv_file.update_state, msg_id =pg.messages.EstimatedState, src='lauv-xplore-2', src_ent=None)
-    sub.subscribe_async(csv_file.update_temperature, msg_id =pg.messages.Temperature, src='lauv-xplore-2', src_ent='CTD')
-    sub.subscribe_async(csv_file.update_sound_speed, msg_id=pg.messages.SoundSpeed, src='lauv-xplore-2', src_ent='CTD')
-    sub.subscribe_async(csv_file.update_conductivity, msg_id=pg.messages.Conductivity, src='lauv-xplore-2', src_ent='CTD')
-    sub.subscribe_async(csv_file.update_salinity, msg_id=pg.messages.Salinity, src='lauv-xplore-2', src_ent='CTD')
+    ## Decompress them 
+    export_logs(compressed_files_path)
+    
+    ## Get needed data into xlsv file
+    for path in compressed_files_path:
+        
+        csv_file = table(path + '/Data.xlsx')
+        src_file = path + '/Data.lsf'
+        #csv_file = table('in_data/output.xlsx')
+        #src_file = 'in_data/Data.lsf'
+        
+        try:
 
-    sub.run()
+            # Connect to the actual file
+            sub = n.subscriber(n.file_interface(input = src_file), use_mp=True)
+            print("Exporting {} to xlsv file".format(src_file))
 
-    csv_file.write_to_file()
+            # Subscribe to specific variables and provide sub with a callback function
+            sub.subscribe_async(csv_file.update_state, msg_id =pg.messages.EstimatedState)
+            sub.subscribe_async(csv_file.update_temperature, msg_id =pg.messages.Temperature)
+            sub.subscribe_async(csv_file.update_sound_speed, msg_id=pg.messages.SoundSpeed)
+            sub.subscribe_async(csv_file.update_conductivity, msg_id=pg.messages.Conductivity)
+            sub.subscribe_async(csv_file.update_salinity, msg_id=pg.messages.Salinity)
+            sub.subscribe_async(csv_file.update_turbidity, msg_id=pg.messages.Turbidity)
+            sub.subscribe_async(csv_file.update_chloro, msg_id=pg.messages.Chlorophyll)
+
+            # Run the even loop (This is asyncio witchcraft)
+            sub.run()
+
+            # Save all the info into csv files for later parsing
+            csv_file.write_to_file()
+
+        except KeyError as e:
+            print("Something went wrong with {} \n ERROR: {}".format(src_file, e))
 
 

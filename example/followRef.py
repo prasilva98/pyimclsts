@@ -55,6 +55,7 @@ class FollowRef_Vehicle():
 
     def update_vehicle_state(self, msg : pg.messages.EstimatedState, send_callback):
         self.EstimatedState = msg
+        print(self.EstimatedState)
 
     def update_plan_state(self, msg : pg.messages.FollowRefState, send_callback):
         self.FollowRefState = msg
@@ -72,7 +73,7 @@ if __name__ == '__main__':
     sub = p.subscriber(conn)
     
     # This is just an object to keep track of all the info related with the vehicle. 
-    vehicle = FollowRef_Vehicle('lauv-xplore-2')
+    vehicle = FollowRef_Vehicle('lauv-xplore-1')
 
     # Set a delay, so that we receive the Announcements
     sub.call_once(vehicle.request_followRef, 5)
