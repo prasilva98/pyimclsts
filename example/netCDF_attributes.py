@@ -18,6 +18,7 @@ xr.set_options(display_max_rows=30)
 
 netcdf_file = 'in_data/IBMA_AUVXPLORE4_d01_20220917_to_20220918_v001.nc'
 xrds_example = xr.open_dataset(netcdf_file)
+print(xrds_example)
 
 ## Save the base attributes 
 with open('metadata/global_attributes.json', 'w') as f:
@@ -32,8 +33,6 @@ for var_name, var_data in xrds_example.data_vars.items():
 coor_dict = {}
 for coor_name, coor_data in xrds_example.coords.items():
    coor_dict[coor_name] = coor_data.attrs
-
-print(coor_dict)
 
 ## Load them back from the json file
 with open('metadata/global_attributes.json', 'r') as f:
@@ -80,10 +79,7 @@ xrds = xr.Dataset(
 for var_name, var_data in var_dict.items():
    xrds[var_name].attrs = var_data
 
-print(var_dict)
-
 for coor_name, coor_data in coor_dict.items():
    xrds[coor_name].attrs = coor_data
 
-print(xrds_example['PSAL'].attrs)
 
