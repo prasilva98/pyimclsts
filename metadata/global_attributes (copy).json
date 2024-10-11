@@ -1,0 +1,32 @@
+{
+    "date_created": "2022-12-06T10:00:00Z",
+    "Conventions": "OceanSITES v1.4,SeaDataNet_1.0,COARDS, CF-1.6, CMEMS INSTAC v3.2",
+    "institution_edmo_code": NaN,
+    "geospatial_lat_min": 37.2249,
+    "geospatial_lat_max": 37.3465,
+    "geospatial_lon_min": -9.4094,
+    "geospatial_lon_max": -8.8728,
+    "geospatial_vertical_min": -0.234,
+    "geospatial_vertical_max": 99.81,
+    "time_coverage_start": "2022-09-17T10:17:28Z",
+    "time_coverage_end": "2022-09-18T21:52:24Z",
+    "update_interval": "void",
+    "site_code": NaN,
+    "emso_facility": "Iberian Margin",*
+    "source": "autonomous underwater vehicle",**
+    "platform_code": NaN,
+    "wmo_platform_code": NaN,
+    "data_type": "OceanSITES trajectory data",
+    "format_version": 1.5,
+    "network": "EMSO-ERIC",*
+    "data_mode": "D",
+    "title": "cross-shore AUV trasect from surface to 100 m depth ",**
+    "summary": "The deployment of an Autonomous underwater vehicle (AUV) from the port of Arrifana was scheduled for the first days of the cruise. The already mentioned weather conditions delay the deployment, that took finally place between 17-19 th of September. The Light Autonomous Underwater Vehicle (LAUV Xplore-4) conducted high-resolution surveys measuring temperature and salinity between the surface and 10/50/100 m depth (according to bathymetry) during almost 36 hours of autonomy. The total number of immersion profiles is larger than 100 cycles, with 52 profiles from surface to 100 m depth and back. Special caution and safety guidelines were followed to avoid the collision with other vessels since the zone is a busy route for marine traffic.",**
+    "keywords": "temperature of the water column \u2013 TEMP \u2013 WC_Temp; salinity of the water column \u2013 PSAL \u2013 WC_Sal; electrical conductivity of the water column \u2013 CNDC \u2013 WC_Cond; sound velocity in the water column \u2013 SVEL \u2013 WC_SoundVel; ",
+    "keywords_vocabulary": "SeaDataNet parameter discovery vocabulary ",
+    "project": "EMSO-ERIC",**
+    "QC_indicator": "unkown",
+    "principal_investigator": "Jo\u00e3o Borges de Sousa",**
+    "principal_investigator_email": "jtasso@fe.up.pt",**
+    "license": "CC-BY"
+}

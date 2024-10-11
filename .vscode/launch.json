@@ -1,0 +1,21 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python Debugger: Current File with Arguments",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "example/lsf2netcdf.py",
+      "console": "integratedTerminal",
+      "env": { "PYTHONPATH": "${workspaceRoot}"},
+      "args": [
+        "-p", "/mnt/sdb1/Missions/2017/2017-04-21-douro/logs/lauv-xplore-1/20170423/180422_survey4", "--filter_underwater",
+         "--force",
+          "-d",
+          "/home/ruben/workspace/pyimclsts/metadata/polygon.csv"]
+    }
+  ]
+}
