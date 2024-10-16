@@ -12,10 +12,9 @@
       "console": "integratedTerminal",
       "env": { "PYTHONPATH": "${workspaceRoot}"},
       "args": [
-        "-p", "/mnt/sdb1/Missions/2017/2017-04-21-douro/logs/lauv-xplore-1/20170423/180422_survey4", "--filter_underwater",
-         "--force",
-          "-d",
-          "/home/ruben/workspace/pyimclsts/metadata/polygon.csv"]
+        "-p", "~/Workspace/Missions/20170421",
+         "--filter_underwater"
+          ]
     }
   ]
 }

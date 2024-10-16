@@ -668,7 +668,6 @@ class netCDFExporter():
         self.xrds = self.xrds.assign_coords(
             {
                 'TIME' : ('TIME', pd.to_datetime(self.data_df['TIME'].unique(), unit='s') ),
-                'DEPH' : ('TIME', self.data_df['DEPH'].astype(np.float64) ),
                 'LATITUDE' : ('TIME', self.data_df['LATITUDE'].astype(np.float32)),
                 'LONGITUDE' : ('TIME', self.data_df['LONGITUDE'].astype(np.float32) )
             }
@@ -676,30 +675,20 @@ class netCDFExporter():
 
         for data in self.data_df.columns:
             
-            if str(data) != 'LATITUDE' and str(data) != 'LONGITUDE' and str(data) != 'geometry' and str(data) != 'DEPH':
+            if str(data) != 'LATITUDE' and str(data) != 'LONGITUDE' and str(data) != 'geometry':
 
                 self.xrds[str(data)] = ('TIME', self.data_df[str(data)])
 
     def to_netCDF(self):
         
-        # Extract the date fr
-        date = self.global_attrs['date_created']
-        date = datetime.fromisoformat(date[:-1])
-        date = date.date()
-        date = str(date).replace('-','_')
-
-        # Extract the vehile name
-        vehicle_name = self.data_attrs['APSA']['sdn_instrument_name']
-        vehicle_name = str(vehicle_name).replace(' ', '_')
-        vehicle_name = vehicle_name.replace('-','_')
-
         # Mission name
         mission_name = self.global_attrs['project']
-
-        netcdf_name = ("{}_{}_{}.nc".format(mission_name, vehicle_name, date))
         
         self.xrds.to_netcdf("{}.nc".format(self.file_name))
-
         print("netCDF {} sucessfully created".format(self.file_name))
+
+    def print_netCDF(self):
+
+        print(self.xrds.global_attrs)
 
    

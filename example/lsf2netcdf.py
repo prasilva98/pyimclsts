@@ -1,4 +1,3 @@
-import geopandas.geodataframe
 from example.netCDF.utils import *
 from example.netCDF.core import *
 from datetime import datetime 
@@ -10,11 +9,11 @@ import pyimc_generated as pg
 import argparse
 import os
 import sys
-import geopandas
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
+import plotly.express as px
 
 if __name__ == '__main__':
 
@@ -23,7 +22,7 @@ if __name__ == '__main__':
 
     # Minimum time argument
     parser.add_argument('-t','--min_time', type=int, default=5,
-                        help="Minimum length of log (in min) to be used. Preset is 2 min")
+                        help="Minimum length of log (in min) to be used. Preset is 5 min")
     # Path to the mission argument
     parser.add_argument('-p', '--mission_path', type=str, default=os.getcwd(),
                         help="Specify path to the actual logs. Preset is your current location")
@@ -35,7 +34,7 @@ if __name__ == '__main__':
                         "A odd number of points will result in an error")
     
     # Add a boolean flag to force th deletion of data files
-    parser.add_argument('--force', action='store_true', help="Call option if you want all previous data files to be deleted")
+    parser.add_argument('--force', action='store_true', help="Call argument if you want to generate new data files, evne if they exist")
 
     # Add a boolean flag to clean up the data.csv files left behing 
     parser.add_argument('--clean', action='store_true', help='Call argument if you want to clean all excel files after netcdf file has been generated')
@@ -185,6 +184,10 @@ if __name__ == '__main__':
         
         print("Concatenating file: {}".format(path))
 
+        if not os.path.isdir(path + '/mra'):
+
+            os.makedirs(path + '/mra', exist_ok=True)
+
         logData = path + '/mra/Data.xlsx'
         
         # Read data from excel file
@@ -199,12 +202,19 @@ if __name__ == '__main__':
 
     concat_data.sort_values(by='TIME')
 
-    plt.plot(concat_data['LONGITUDE'], concat_data['LATITUDE'], marker='None', linestyle='-', color='b')
-    decimal_format = ticker.FormatStrFormatter('%.4f')
+    color_scale = [(0, 'orange'), (1, 'red')]
 
-    plt.gca().yaxis.set_major_formatter(decimal_format)
-    plt.gca().xaxis.set_major_formatter(decimal_format)
-    plt.show()
+    fig = px.scatter_mapbox(concat_data, 
+                            lat='LATITUDE',
+                            lon='LONGITUDE',
+                            color_continuous_scale=color_scale,
+                            zoom=8, 
+                            height=800,
+                            width=800)
+    
+    fig.update_layout(mapbox_style="open-street-map")
+    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    fig.show()
 
     # Create an outdata folder    
     outdata_path = os.getcwd() + '/outdata'
