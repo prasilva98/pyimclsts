@@ -135,7 +135,9 @@ def _get_id_src_src_ent(message : bytes) -> Tuple[int, int, int]:
 # Re-export some classes:
 
 tcp_interface = _core.tcp_interface
+udp_interface = _core.udp_interface
 file_interface = _core.file_interface
+
 
 class _message_bus():
     '''Injected dependency to 'simplify' common functionalities'''
@@ -357,6 +359,7 @@ class message_bus_st(_message_bus):
     async def open(self):
         self._keep_running = True
 
+        # These are usefull to consume and send messages between co-routines in asyncio
         self._writer_queue = _asyncio.Queue()
         self._reader_queue = _asyncio.Queue()
 
@@ -442,7 +445,8 @@ class message_bus_st(_message_bus):
             finally:
                 print('IO interface has been closed.')
                 await self._io_interface.close()
-
+        
+        # There is another loop here 
         self._task = _asyncio.create_task(main_loop())
     
     def close(self, max_wait : float = 1) -> None:
@@ -450,10 +454,16 @@ class message_bus_st(_message_bus):
         self._task.cancel()
         print('Message Bus has been closed.')
 
-    def _send(self, message : _pg._base.base_message, *, src : Optional[int] = None, src_ent : Optional[int] = None, 
-                        dst : Optional[int] = None, dst_ent : Optional[int] = None) -> None:
+    def _send(self,
+              message : _pg._base.base_message,
+              *,
+              src : Optional[int] = None,
+              src_ent : Optional[int] = None,
+              dst : Optional[int] = None,
+              dst_ent : Optional[int] = None) -> None:
+
         self._writer_queue.put_nowait(message.pack(is_big_endian=self._big_endian, src = src, src_ent = src_ent, 
-                        dst = dst, dst_ent = dst_ent))
+                                      dst = dst, dst_ent = dst_ent))
 
     async def recv(self) -> _pg._base.base_message:
         '''Wrapper around a queue (actually a pipe end). Blocks until a message is available.
@@ -482,6 +492,13 @@ class message_bus_st(_message_bus):
 
 class subscriber:
 
+    """
+    This is the class where we actually start the asyncio event loop
+    Its called subscriber because after a message is deciphered as an IMC message
+    we use a dictionaries that maps msg_id to callback funtions that are, you guessed it,
+    called if we receive such a message. 
+    """
+
     __slots__ = ['_msg_manager', '_subscriptions', '_subscripted_all', '_periodic', '_call_once', '_use_mp', '_peers', '_src2name', '_keep_running']
 
     def __init__(self, IO_interface : _core.base_IO_interface, *,big_endian=False, use_mp = False) -> None:
@@ -502,8 +519,8 @@ class subscriber:
         # a dictionary of {2: 'vehicle name'}
         self._src2name = dict()
         
+        # These are standard messages that we gather, to update all entities present in the ecossystem
         self.subscribe_async(self._abort, _pg.messages.Abort)
-        
         self.call_once(self._queryEntityList, delay=1)
         self.periodic_async(self._queryEntityList, period=300)
         self.subscribe_async(self._update_peers, _pg.messages.EntityInfo)
@@ -526,19 +543,32 @@ class subscriber:
             loop.call_later(_period, f, send_callback)
 
     async def _event_loop(self):
+        """
+            This is eesentially our main loop, from my understanding. 
+            It is called by the subscriber.run() 
+        """
+
+        # Get the msg_manager which contains an interface to whichever connection you established
         msg_mgr = self._msg_manager
         try:
+            # Open that connection
+            # When the connection is opened you are also creating an asynchronous task that handles data coming from your IO_Interface 
+            # REMINDER: that io_interface is inside _msg_manager
             if self._use_mp:
                 msg_mgr.open()
             else:
                 await msg_mgr.open()
             loop = _asyncio.get_running_loop()
-
+            
+            # Go over the dictionary of call_once callbacks
             for f, delay in self._call_once:
                 if delay is not None:
                     loop.call_later(delay, f, msg_mgr.send)
                 else:
                     f(msg_mgr.send)
+            
+            # At this point we have yet to actually send something. What the previous code block did is
+            # Add the messages that we want to sent to the asyncio.queue()
             
             # Binding references to background task objects so that they are not garbage collected
             tasks = []
@@ -657,7 +687,17 @@ class subscriber:
             
         return False
     
-    def subscribe_async(self, callback : Callable[[_core.IMC_message, Callable[[_core.IMC_message], None]], None], msg_id : Optional[Union[int, _core.IMC_message, str, _types.ModuleType]] = None, *, src : Optional[str] = None, src_ent : Optional[str] = None):
+    def subscribe_async(self,
+                        callback : Callable[
+                            [_core.IMC_message, Callable[
+                                [_core.IMC_message], None]],
+                            None], 
+                        msg_id : Optional[
+                            Union[int, _core.IMC_message, str, _types.ModuleType]
+                            ] = None, *, 
+                        src : Optional[
+                            str] = None, src_ent : Optional[str] = None):
+        # Diabolical syntax #
         '''Appends the callback to the list of subscriptions to a message.
         msg_id can be provided as an int, the class of the message, its instance or a category (string (camel case) or module).
         src and src_ent should be provided as strings.
@@ -678,6 +718,8 @@ class subscriber:
         Tip: If the original function really needs arguments, wrap it with functools.partial.
         Tip2: Use a class instance to keep shared values across different calls. See followRef.py.
         '''
+
+        # Checking which the msg_id depending on the type of message it is
         key = None
         if isinstance(msg_id, _core.IMC_message):
             key = msg_id.Attributes.id
@@ -701,6 +743,7 @@ class subscriber:
         
         # There is either an explicit subscription (the key is not None) or 'all'
         # (msg_id is None). There cannot be both nor neither.
+        # We check if the function is already "async certified" 
         if (key is not None) ^ (msg_id is None):
             c = None
             if _inspect.iscoroutinefunction(callback):
