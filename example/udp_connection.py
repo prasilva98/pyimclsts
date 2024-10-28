@@ -1,4 +1,4 @@
-import pyimclsts.network as p
+import pyimclsts.network as n
 import pyimc_generated as pg
 import random 
 
@@ -54,6 +54,7 @@ class FollowRef_Vehicle():
             send_callback(referenceToFollow, dst = self.peers.get(self.target, 0xFFFF))
 
     def update_vehicle_state(self, msg : pg.messages.EstimatedState, send_callback):
+        print(msg)
         self.EstimatedState = msg
 
     def update_plan_state(self, msg : pg.messages.FollowRefState, send_callback):
@@ -64,23 +65,21 @@ class FollowRef_Vehicle():
 
 if __name__ == '__main__':
     
-    # This creates a TCP_interface which in fact is just a really contrived way of creating a bunch of read/write functions 
-    # using the diabolical asyncio.open_connection()
-    conn = p.tcp_interface('localhost', 6006)
-    # You then give this open connection to the subscriber, which really, from what I understand just limits our functionality
-    # to reading from the connection
-    sub = p.subscriber(conn)
-    
+    con = n.udp_interface('localhost', 8000, 'localhost', 6006)
+    sub = n.subscriber(con)
+
     # This is just an object to keep track of all the info related with the vehicle. 
-    vehicle = FollowRef_Vehicle('lauv-xplore-2')
+    vehicle = FollowRef_Vehicle('lauv-xplore-1')
 
     # Set a delay, so that we receive the Announcements
-    sub.call_once(vehicle.request_followRef, 5)
+    #sub.call_once(vehicle.request_followRef, 5)
 
-    sub.subscribe_async(vehicle.update_peers, pg.messages.Announce)
-    sub.subscribe_async(vehicle.update_vehicle_state, pg.messages.EstimatedState)
-    sub.subscribe_async(vehicle.update_plan_state, pg.messages.FollowReference)
+    #sub.subscribe_async(vehicle.update_peers, pg.messages.Announce)
+    sub.subscribe_async(vehicle.update_vehicle_state, pg.messages.EntityList)
+    #sub.subscribe_async(vehicle.update_plan_state, pg.messages.FollowReference)
 
-    sub.periodic_async(vehicle.send_refs, 1)
+    #sub.periodic_async(vehicle.send_refs, 1)
     
     sub.run()
+
+
