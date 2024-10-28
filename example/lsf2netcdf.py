@@ -105,12 +105,17 @@ if __name__ == '__main__':
         for path in compressed_files_path:
 
             if not os.path.isfile(path + '/mra/Data.xlsx'):
+
                 checkable_files.append(path)
 
     rejected_files = []
 
     ## Get needed data into xlsv file
     for path in checkable_files:
+
+        if not os.path.isdir(path + '/mra'):
+
+            os.makedirs(path + '/mra')
         
         logData = logDataGatherer(path + '/mra/Data.xlsx')
         src_file = path + '/Data.lsf'
