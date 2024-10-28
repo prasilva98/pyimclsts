@@ -271,7 +271,7 @@ class EchoUDPProtocol(_asyncio.DatagramProtocol):
         self.transport = transport
         self.io_interface.transport = transport
 
-        print("Listening on {} | {}".format(self.io_interface._ip, self.io_interface._port))
+        print("Opened Port: {} On IP: {}".format(self.io_interface.in_ip, self.io_interface.in_port))
 
     def datagram_received(self, data, addr) -> None:
          
@@ -283,7 +283,7 @@ class EchoUDPProtocol(_asyncio.DatagramProtocol):
         
         except UnicodeDecodeError:
 
-            print("Coudn't decode as UTF-8: here's the raw data: {}".format(data))
+            print("Coudn't decode as UTF-8: here's the raw data: {}. Most Likely an IMC Message".format(data))
 
 
 class udp_interface(base_IO_interface):
@@ -292,9 +292,11 @@ class udp_interface(base_IO_interface):
         We need to use lower-level asyncio methods. 
     """
 
-    def __init__(self, ip : str, port : int) -> None:
-        self._ip = ip
-        self._port = port
+    def __init__(self, in_ip : str, in_port : int, out_ip : str, out_port : int) -> None:
+        self.in_ip = in_ip
+        self.in_port = in_port
+        self.out_ip = out_ip
+        self.out_port = out_port
         self.transport = None
         self.protocol = None
         self._incoming_data = _asyncio.Queue()
@@ -311,9 +313,9 @@ class udp_interface(base_IO_interface):
         # Transport will watch ip and port. If data is to be sent/received methods from protocol are called. 
         # Those methods are what you define to be done in the lambda object you provide
         self.transport, self.protocol = await loop.create_datagram_endpoint(
-            lambda : EchoUDPProtocol(self), 
-            (self._ip, self._port)
-        )
+            lambda : EchoUDPProtocol(self),
+            self.in_ip, self.in_port
+            )
 
     async def read(self, n_bytes: int) -> bytes:
         
@@ -328,7 +330,7 @@ class udp_interface(base_IO_interface):
 
             raise RuntimeError("Transport is available. Make sure you the server is up and running")
         
-        self.transport.sendto(byte_string, (self._ip, self._port))
+        self.transport.sendto(byte_string, (self.out_ip, self.out_port))
 
     async def close(self) -> None:
         if self.transport:
