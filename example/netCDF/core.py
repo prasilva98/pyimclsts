@@ -607,6 +607,8 @@ class netCDFExporter():
             self.global_attrs['geospatial_vertical_min'] = self.metadata_df['geospatial_vertical_min'].iloc[0]
             self.global_attrs['geospatial_vertical_max'] = self.metadata_df['geospatial_vertical_max'].iloc[0]
             
+
+            """
             print("** PLEASE ENTER CUSTOM GLOBAL ATTRIBUTES **")
             emso_facility = input("Type emso facility name to use. If left EMPTY {} will be used: ".
                                   format(self.global_attrs['emso_facility']))
@@ -632,7 +634,8 @@ class netCDFExporter():
             self.global_attrs['project'] = project
             self.global_attrs['principal_investigator'] = principal_investigator
             self.global_attrs['principal_investigator_email'] = principal_investigator_email
-
+            
+            """
             self.xrds.attrs = self.global_attrs
         
         if not 'LATITUDE' in self.coor_attrs:
