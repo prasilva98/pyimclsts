@@ -163,9 +163,13 @@ class _message_bus():
         '''Unblock outgoing messages'''
         self._block_outgoing = False
 
-    def send(self, message : _pg._base.base_message, *, src : Optional[int] = None, src_ent : Optional[int] = None, 
-                        dst : Optional[int] = None, dst_ent : Optional[int] = None) -> None:
+    def send(self, message : _pg._base.base_message, *,
+             src : Optional[int] = None,
+             src_ent : Optional[int] = None, 
+             dst : Optional[int] = None, dst_ent : Optional[int] = None) -> None:
+        
         '''Wrapper around a queue (actually a pipe end).'''
+        #if message._header.type = cenas
         if not self._block_outgoing:
             self._send(message, src = src, src_ent = src_ent, dst = dst, dst_ent = dst_ent)
             
@@ -365,7 +369,7 @@ class message_bus_st(_message_bus):
 
         async def consume_output(io_interface : _core.base_IO_interface):
             '''Continuously read the pipe end to send messages'''
-            
+            print("Started Consume Output from IO_Interface Task")
             while self._keep_running:
                 try:
                     # flush queue or wait.
@@ -383,6 +387,7 @@ class message_bus_st(_message_bus):
             '''Continuously read the socket to deserialize messages'''
             
             buffer = bytearray()
+            print("Started Consume Input from IO_Interface Task")
             while self._keep_running:
                 try:
                     # magic number: 6 = sync number + (msgid + msgsize) size in bytes
@@ -535,7 +540,11 @@ class subscriber:
             now = loop.time()
             await _asyncio.sleep(max(last_exec - now + _period, 0))
                 
-    async def _periodic_wrapper(self, _period : float, f : Callable, send_callback : Callable[[_core.IMC_message], None]):
+    async def _periodic_wrapper(self, _period : float,
+                                f : Callable,
+                                send_callback : Callable[
+                                    [_core.IMC_message], None]
+                                    ):
         loop = _asyncio.get_running_loop()
         f(send_callback)
         while True:
@@ -577,6 +586,7 @@ class subscriber:
                     tasks.append(loop.create_task(self._periodic_wrapper_coro(period, f, msg_mgr.send)))
                 elif callable(f):
                     tasks.append(loop.create_task(self._periodic_wrapper(period, f, msg_mgr.send)))
+                    # I'll have to parse the message in the send. Ou seja 
                 else:
                     print(f'Warning: Given function {f} is neither Callable nor a coroutine.')
 

@@ -277,6 +277,7 @@ class EchoUDPProtocol(_asyncio.DatagramProtocol):
          
         self.io_interface._incoming_data.put_nowait(data)
 
+        """
         try:
 
             print("Data decoded as UTF-8 {}".format(data.decode()))
@@ -284,6 +285,8 @@ class EchoUDPProtocol(_asyncio.DatagramProtocol):
         except UnicodeDecodeError:
 
             print("Coudn't decode as UTF-8: here's the raw data: {}. Most Likely an IMC Message".format(data))
+
+        """
 
 
 class udp_interface(base_IO_interface):
@@ -293,6 +296,7 @@ class udp_interface(base_IO_interface):
     """
 
     def __init__(self, in_ip : str, in_port : int, out_ip : str, out_port : int) -> None:
+        
         self.in_ip = in_ip
         self.in_port = in_port
         self.out_ip = out_ip
@@ -314,7 +318,7 @@ class udp_interface(base_IO_interface):
         # Those methods are what you define to be done in the lambda object you provide
         self.transport, self.protocol = await loop.create_datagram_endpoint(
             lambda : EchoUDPProtocol(self),
-            self.in_ip, self.in_port
+            local_addr=(self.in_ip, self.in_port)
             )
 
     async def read(self, n_bytes: int) -> bytes:
@@ -328,9 +332,17 @@ class udp_interface(base_IO_interface):
         # No transport was provided by the create_datagram_endpoint???? No good, partner
         if self.transport is None:
 
-            raise RuntimeError("Transport is available. Make sure you the server is up and running")
+            raise RuntimeError("Transport is Unavailable. Make sure you the server is up and running")
+    
+        # If mgid is of announce of type we should also send it to the both the discovery udp port and the regular dune udp port
+        mgid = int.from_bytes(byte_string[2:4], byteorder='little')
+        if mgid == 151:
+            discovery_port = 30100
+            print("Announcing to port {}".format(discovery_port))
+            self.transport.sendto(byte_string, (self.out_ip, discovery_port))
         
         self.transport.sendto(byte_string, (self.out_ip, self.out_port))
+
 
     async def close(self) -> None:
         if self.transport:
