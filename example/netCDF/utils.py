@@ -102,10 +102,6 @@ def gather_log_paths(log_path):
                     full_path = os.path.join(root)
                     lsf_files.append(full_path)
                 
-                elif file.endswith('Data.lsf'):
-
-                    full_path = os.path.join(root)
-                    lsf_files.append(full_path)
 
     except OSError:
 
