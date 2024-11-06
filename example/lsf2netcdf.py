@@ -104,7 +104,7 @@ if __name__ == '__main__':
     else: 
         for path in compressed_files_path:
 
-            if not os.path.isfile(path + '/mra/Data.xlsx'):
+            if not os.path.isfile(path + '/mra/Data.xlsx') and os.path.isfile(path + '/Data.lsf'):
 
                 checkable_files.append(path)
 
