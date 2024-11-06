@@ -606,36 +606,7 @@ class netCDFExporter():
             self.global_attrs['geospatial_lon_max'] = self.metadata_df['geospatial_lon_max'].iloc[0]
             self.global_attrs['geospatial_vertical_min'] = self.metadata_df['geospatial_vertical_min'].iloc[0]
             self.global_attrs['geospatial_vertical_max'] = self.metadata_df['geospatial_vertical_max'].iloc[0]
-            
-
-            """
-            print("** PLEASE ENTER CUSTOM GLOBAL ATTRIBUTES **")
-            emso_facility = input("Type emso facility name to use. If left EMPTY {} will be used: ".
-                                  format(self.global_attrs['emso_facility']))
-            source = input("Type the source of this data: ")
-            network = input("Type the network associated with this data. If left EMPTY {} will be used: ".
-                            format(self.global_attrs['network']))
-            title = input("Type the title of this data file: ")
-            summary = input("Type a brief summary of this data file: ")
-            project = input("Identify the project whose data this belongs to: ")
-            principal_investigator = input("Identify the principal investigator: ")
-            principal_investigator_email = input("Identify the previous person email: ")
-            
-            if emso_facility: 
-                self.global_attrs['emso_facility'] = emso_facility
-            
-            self.global_attrs['source'] = source
-
-            if network:
-                self.global_attrs['network'] = network
-
-            self.global_attrs['title'] = title
-            self.global_attrs['summary'] = summary 
-            self.global_attrs['project'] = project
-            self.global_attrs['principal_investigator'] = principal_investigator
-            self.global_attrs['principal_investigator_email'] = principal_investigator_email
-            
-            """
+ 
             self.xrds.attrs = self.global_attrs
         
         if not 'LATITUDE' in self.coor_attrs:
