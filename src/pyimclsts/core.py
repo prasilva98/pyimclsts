@@ -338,7 +338,7 @@ class udp_interface(base_IO_interface):
         mgid = int.from_bytes(byte_string[2:4], byteorder='little')
         if mgid == 151:
             discovery_port = 30100
-            print("Announcing to port {}".format(discovery_port))
+            print("[UDP Connection] Announcing to port {}".format(discovery_port))
             self.transport.sendto(byte_string, (self.out_ip, discovery_port))
         
         self.transport.sendto(byte_string, (self.out_ip, self.out_port))
@@ -347,4 +347,4 @@ class udp_interface(base_IO_interface):
     async def close(self) -> None:
         if self.transport:
             self.transport.close()
-            print("Server Connection Terminated")
+            print("[UDP Connection] Server Connection Terminated")
