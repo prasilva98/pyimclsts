@@ -29,9 +29,32 @@ import pyimc_generated as pg
 ```
 In the installed module, you will find some functions to allow you to connect to a vehicle and subscribe to messages, namely, a subscriber class.
 ```python
-import pyimclsts.network as n
-
-conn = n.tcp_interface('localhost', 6006)
-sub = n.subscriber(conn)
+import pyimc_generated as pg
 ```
-Check `/example` for a better example.
+
+In the /example folder you can find scripts that use this library for various porpuses, such as reading and concatenating logs for the creation of the NetCDF files.  
+
+### Log to NetCDf Exporter
+
+If you followed the quick start guide correctly, you now have access to the pyimclsts library which essentially means that your python instalation is able to interpert IMC messages. This give you the ability to retrieve information from a LAUV log files
+
+Lucky for you, somebody (me), also took the liberty to write a script (a very long one at that) that takes a number of LAUV log files, extracts to a csv oceanography usefull data and concatenates said data and generates a netCDF file. 
+This amazing feat is contained in the very originally named lsf2netcdf.py file. I shall now explain how to make use of this file. 
+
+ Please make sure you are in the pyimclsts folder. Also make sure you call it as a python module (this means using the -m argument when you call it). Next you can see a full example of a command calling the script with all its optional arguements included. 
+
+```shell
+~/your_workspace/pyimclsts$ python3 -m example.lsf2netcdf -p path_to_your_file -t 6 -d polygon.csv --filter_underwater --force --clean  
+```
+
+### The arguments
+
+`-p MISSION_PATH` 
+
+Here you should specify the path to folders where your logs are located. You should be a bit carefull here because the script WILL hunt down every Data.lsf.gz file inside your directory use it.
+
+
+
+
+
+
