@@ -43,7 +43,7 @@ This amazing feat is contained in the very originally named `lsf2netcdf.py` file
 
 ### A single csv to rule them all
 
-Essentially, `lsf2netcdf.py` will go through all the logs files in a directory, specified by the user, and export specific data from the it, into csv files. These csv files are then concatenated into a single csv file, with some filtering (which you can costumize using arguments) and clean-up done.
+Essentially, `lsf2netcdf.py` will go through all the logs files in a directory, specified by the user, and export specific data from the it, into csv files. You can find them next to the logs, inside the `mra` folder. These csv files are then concatenated into a single csv file, with some filtering (which you can costumize using arguments) and clean-up done.
 
 ### Metadata 
 
@@ -99,8 +99,8 @@ After going through each log file, a csv file is saved to then concatenate once 
 ## Utils
 
 Included in this repo are 2 util scripts. 
-`csv2netcdf.py` Takes the final concatenated csv file and generate a new netCDF file. If you want to edit something in the final csv file or make some changes to the metadata this is an easy way to do it. 
-`netcdf_editor.py` Essentially the same but it uses the netCDF file to generate another one. To be used if you changed the metadata. 
+- `csv2netcdf.py` Takes the final concatenated csv file and generate a new netCDF file. If you want to edit something in the final csv file or make some changes to the metadata this is an easy way to do it. 
+- `netcdf_editor.py` Essentially the same but it uses the netCDF file to generate another one. To be used if you changed the metadata. 
 
 That's it. If any problems come up or you want suggest a new useful feauture (like additional filtering) you can do so by opening a new Issue or contacting somebody from the LSTS staff. 
 
