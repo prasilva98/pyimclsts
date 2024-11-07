@@ -3,6 +3,7 @@ from example.netCDF.core import *
 from datetime import datetime 
 from shapely import wkt
 from shapely.geometry import Point, Polygon 
+import shutil
 import pyimclsts.network as n
 import pyimc_generated as pg
 import argparse
@@ -93,10 +94,8 @@ if __name__ == '__main__':
 
         for path in compressed_files_path: 
             
-            os.makedirs(path + '/mra', exist_ok=True)
-
-            if os.path.isfile(path + '/mra/Data.xlsx'):
-                os.remove(path + '/mra/Data.xlsx')
+            if os.path.isdir(path + '/mra'):
+                shutil.rmtree(path + '/mra')
 
             checkable_files.append(path)
 
@@ -141,12 +140,12 @@ if __name__ == '__main__':
             sub.run()
 
             # Go through the Entity info and check for the vehicle name
-            for key in sub._peers.keys():
-                key = str(key)
-                if 'lauv' in key:
-                    print("Log is coming from vehicle {}".format(key))
-                    logData.name = key
-            
+            key_with_entity_list = next((key for key, value in sub._peers.items() if 'EntityList' in value), None)
+            key_with_entity_list = str(key_with_entity_list)
+            if 'lauv' in key_with_entity_list:
+                print("Log is coming from vehicle {}".format(key_with_entity_list))
+                logData.name = key_with_entity_list
+        
             if not 'lauv' in logData.name:
                 raise Exception("No Vehile found in EntityList")
 
