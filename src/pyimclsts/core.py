@@ -303,6 +303,7 @@ class udp_interface(base_IO_interface):
         self.out_port = out_port
         self.transport = None
         self.protocol = None
+        self.new_msg_buffer = bytearray()
         self._incoming_data = _asyncio.Queue()
         
     async def open(self) -> None:
@@ -356,3 +357,29 @@ class udp_interface(base_IO_interface):
         if self.transport:
             self.transport.close()
             print("[UDP Connection] Server Connection Terminated")
+
+
+
+class EchoUDPProtocol(_asyncio.DatagramProtocol):
+
+    """
+    When building a UDP interface you are essentially required
+    to build your own Datagram Protocol, and that is what this is. 
+    """
+
+    def __init__(self, io_interface : udp_interface):
+        
+        # Here we reference our parent class.
+        # This is required because we want to send the data that we receive to the asyncio.Queue
+        self.io_interface = io_interface
+
+    def connection_made(self, transport):
+        
+        self.transport = transport
+        self.io_interface.transport = transport
+
+        print("Opened Port: {} On IP: {}".format(self.io_interface.in_ip, self.io_interface.in_port))
+
+    def datagram_received(self, data, addr) -> None:
+         
+        self.io_interface._incoming_data.put_nowait(data)
