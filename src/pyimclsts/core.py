@@ -323,9 +323,16 @@ class udp_interface(base_IO_interface):
 
     async def read(self, n_bytes: int) -> bytes:
         
-        # To retrieve data we check 
-        data = await self._incoming_data.get()
-        return data[:n_bytes]
+        # Only retrieve form the asyncio if the bytearray is empty
+        if len(self.new_msg_buffer) < 1:
+            self.new_msg_buffer += await self._incoming_data.get()
+        
+        data = self.new_msg_buffer[:n_bytes]
+        
+        # Del the data that was retreived 
+        del self.new_msg_buffer[:n_bytes]
+
+        return data
     
     async def write(self, byte_string: bytes) -> None:
         
