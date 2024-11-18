@@ -339,14 +339,15 @@ class udp_interface(base_IO_interface):
         # No transport was provided by the create_datagram_endpoint???? No good, partner
         if self.transport is None:
 
-            raise RuntimeError("Transport is Unavailable. Make sure you the server is up and running")
+            raise RuntimeError("[UDP Connection] Transport is Unavailable. Make sure you the server is up and running")
     
-        # If mgid is of announce of type we should also send it to the both the discovery udp port and the regular dune udp port
+        # If mgid is of announce of type we should also send it to the both the discovery udp ports and the regular dune udp port
         mgid = int.from_bytes(byte_string[2:4], byteorder='little')
         if mgid == 151:
-            discovery_port = 30100
-            print("[UDP Connection] Announcing to port {}".format(discovery_port))
-            self.transport.sendto(byte_string, (self.out_ip, discovery_port))
+            discovery_port = [30100, 30101, 30102, 30103, 30104]
+            print("[UDP Connection] Announcing to ports 30100, 30101, 30102, 30103, 30104")
+            for port in discovery_port:
+                self.transport.sendto(byte_string, (self.out_ip, port))
         
         self.transport.sendto(byte_string, (self.out_ip, self.out_port))
 
