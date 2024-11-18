@@ -253,41 +253,6 @@ class tcp_interface(base_IO_interface):
         self._writer.close()
         await self._writer.wait_closed()
 
-class EchoUDPProtocol(_asyncio.DatagramProtocol):
-
-    """
-    When building a UDP interface you are essentially required
-    to build your own Datagram Protocol, and that is what this is. 
-    """
-
-    def __init__(self, io_interface):
-        
-        # Here we reference our parent class.
-        # This is required because we want to send the data that we receive to the asyncio.Queue
-        self.io_interface = io_interface
-
-    def connection_made(self, transport):
-        
-        self.transport = transport
-        self.io_interface.transport = transport
-
-        print("Opened Port: {} On IP: {}".format(self.io_interface.in_ip, self.io_interface.in_port))
-
-    def datagram_received(self, data, addr) -> None:
-         
-        self.io_interface._incoming_data.put_nowait(data)
-
-        """
-        try:
-
-            print("Data decoded as UTF-8 {}".format(data.decode()))
-        
-        except UnicodeDecodeError:
-
-            print("Coudn't decode as UTF-8: here's the raw data: {}. Most Likely an IMC Message".format(data))
-
-        """
-
 
 class udp_interface(base_IO_interface):
     """ 
