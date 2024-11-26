@@ -393,21 +393,26 @@ class message_bus_st(_message_bus):
                     # magic number: 6 = sync number + (msgid + msgsize) size in bytes
                     if len(buffer) < 6:
                         buffer += await io_interface.read(6 - len(buffer))
-
+                    #    print("Step 1: Get size of message")
                     if int.from_bytes(buffer[:2], byteorder='little') == _pg._base._sync_number:
                         # get msg size
                         size = int.from_bytes(buffer[4:6], byteorder='little')
+                    #    print("Step 2: Size is {}".format(size))
+
                         # magic number: 22 = 20(header size) + 2(CRC) sizes in bytes.
                         read_size = max(size + 22 - len(buffer), 0)
                         buffer += await io_interface.read(read_size)
 
                         # Validate message, but do not unpack yet
                         unparsed_msg = bytes(buffer[:(size + 22)])
+
                         if _core.CRC16IMB(unparsed_msg[:-2]) == int.from_bytes(unparsed_msg[-2:], byteorder='little'):
+                        #    print("Step 3: Message validated")
                             await self._reader_queue.put(unparsed_msg)
                             # eliminate message from buffer
                             del buffer[:size + 22]
                         else:
+                        #    print("Step 2.5: Deserialization is fucked")
                             # deserialization failed:
                             # sync number is not followed by a sound/valid message. Remove it from buffer
                             # to look for next message
