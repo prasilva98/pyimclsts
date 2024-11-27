@@ -1,5 +1,8 @@
 from example.netCDF.utils import *
 import geopandas.geodataframe
+import matplotlib.pyplot as plt
+import seawater as sea
+import gsw 
 from datetime import datetime
 import pandas as pd
 import xarray as xr
@@ -137,6 +140,7 @@ class logDataGatherer():
         self.salinity = []
         self.turbidity = []
         self.chloro = []
+        self.pressure = []
         self.name = 'NoName'
         self.cols = []
 
@@ -302,6 +306,13 @@ class logDataGatherer():
         # Clear current location and update previous time
         self.currentLoc.__init__()
         self.us_last_time = time
+    
+    def update_pressure(self, msg, callback):
+
+        time = msg._header.timestamp
+        src_ent = msg._header.src_ent 
+        pressure = [time, src_ent, msg.value]
+        self.pressure.append(pressure)
 
     def update_sound_speed(self, msg, callback):
 
@@ -341,6 +352,128 @@ class logDataGatherer():
         time = msg._header.timestamp
         medium = [time, msg.medium]
         self.medium.append(medium)
+
+    # Use to compute Density from CTD values
+    def computeDensity(self):
+
+        self.cols = ['TIME','LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PTCH', 'HDNG', 'APSA', 'APDA', 'TEMP','PSAL', 'PRES', 'MEDIUM']
+        
+        if not self.estimated_states:
+            raise Exception("Log has no ESTIMATED State")
+        
+        else:
+
+            self.df_positions = pd.DataFrame(self.estimated_states, columns=['TIME', 'LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PTCH', 'HDNG', 'APSA', 'APDA'])
+            self.df_positions = self.df_positions.sort_values(by='TIME')
+
+        if not self.medium:
+            raise Exception("Log has no VEHICLE MEDIUM")
+        
+        else:
+            self.df_vehicle_medium = pd.DataFrame(self.medium, columns=['TIME', 'MEDIUM'])
+            self.df_vehicle_medium = self.df_vehicle_medium.sort_values(by='TIME')
+        
+        self.df_salinity = pd.DataFrame(self.salinity, columns=['TIME', 'PSAL'])
+        self.df_salinity = self.df_salinity.sort_values(by='TIME')
+ 
+        self.df_temperatures = pd.DataFrame(self.temperature, columns=['TIME','SRC_ENT', 'TEMP'])
+        self.df_temperatures = self.df_temperatures.sort_values(by='TIME')
+
+        self.df_pressure = pd.DataFrame(self.pressure, columns=['TIME','SRC_ENT','PRES'])
+        self.df_pressure = self.df_pressure.sort_values(by='TIME')
+
+        # Get the proper entity for CTD sensor
+        self.sensor_ent = self.df_pressure.loc[1, 'SRC_ENT']
+        self.df_pressure.drop('SRC_ENT', axis=1)
+
+        # Pascal to dBar
+        self.df_pressure['PRES'] = self.df_pressure['PRES'] / 1000
+
+        # Get the correct values from temperature
+        self.df_temperatures = self.df_temperatures[self.df_temperatures['SRC_ENT'] == self.sensor_ent]
+        self.df_temperatures = self.df_temperatures.drop('SRC_ENT', axis=1)
+
+        # Now merge all data
+        self.df_all_data = pd.merge_asof(self.df_temperatures, self.df_pressure, on='TIME', 
+                                        direction='nearest', suffixes=('_df1', '_df2'))
+        self.df_all_data = pd.merge_asof(self.df_all_data, self.df_salinity, on='TIME',
+                                        direction='nearest', suffixes=('_df1', '_df2'))
+        self.df_all_data = pd.merge_asof(self.df_all_data, self.df_positions, on='TIME', 
+                                        direction='nearest', suffixes=('_df1', '_df2'))
+        self.df_all_data = pd.merge_asof(self.df_all_data, self.df_vehicle_medium, on='TIME',
+                                         direction='nearest', suffixes=('_df1', '_df2'))
+                
+        # Rearrange positions dataframe for better visibility
+        self.df_all_data = self.df_all_data[self.cols]
+
+        print(self.df_all_data)
+
+        # Now that we have all the data we can calculate the density in each point
+        salinity = self.df_all_data['PSAL'].to_list()
+        temperature = self.df_all_data['TEMP'].to_list()
+        pressure = self.df_all_data['PRES'].to_list()
+        depth = self.df_all_data['DEPH'].to_list()
+        lat = self.df_all_data['LATITUDE'].to_list()
+        lon = self.df_all_data['LONGITUDE'].to_list()
+
+        # Density calculated with 80s equation 
+        density = sea.eos80.dens(salinity, temperature, pressure)
+        
+        # To calculate with updated module we need absolute salinity values and Conservative temperature
+
+        # According to gsw.conversions.SA_from_SP remove this value from here 
+        pressure = [x -5 for x in pressure]
+        # Absolute salinity
+        abs_salinity = gsw.conversions.SA_from_SP(salinity, pressure, lon, lat)
+        # Convervative temperature
+        cons_temperature = gsw.conversions.CT_from_t(abs_salinity, temperature, pressure)
+        # Density according to TEOS-10 
+        teos_density = gsw.density.rho(abs_salinity, cons_temperature, pressure)
+
+        print(density)
+        print(teos_density)
+
+        """ 
+        
+        fig, axs = plt.subplots(2,2, figsize=(10,8), sharex=True)
+
+        # Plot Temperature vs Time
+        axs[0,0].plot(self.df_all_data['TIME'], self.df_all_data['TEMP'], color='red', marker='o', label='Temperature (°C)')
+        axs[0,0].set_title('Temperature vs Time')
+        axs[0,0].set_ylabel('Temperature (°C)')
+        axs[0,0].legend(loc='upper right')
+        axs[0,0].grid(True)
+
+        # Plot Humidity vs Time
+        axs[0,1].plot(self.df_all_data['TIME'], self.df_all_data['PSAL'], color='blue', label='Salinity')
+        axs[0,1].set_title('Salinity vs Time')
+        axs[0,1].set_ylabel('Salinity')
+        axs[0,1].legend(loc='upper right')
+        axs[0,1].grid(True)
+
+        # Plot Pressure vs Time
+        axs[1,0].plot(self.df_all_data['TIME'], self.df_all_data['PRES'], color='green', label='Pressure (dBar)')
+        axs[1,0].set_title('Pressure vs Time')
+        axs[1,0].set_ylabel('Pressure (dBar)')
+        axs[1,0].set_xlabel('Time')
+        axs[1,0].legend(loc='upper right')
+        axs[1,0].grid(True)
+
+        # Plot Density vs Time
+        axs[1, 1].plot(self.df_all_data['TIME'], density, color='purple', marker='x', linestyle='--', label='Density')
+        axs[1, 1].set_title('Density vs Time')
+        axs[1, 1].set_ylabel('Density')
+        axs[1, 1].legend()
+        axs[1, 1].grid(True)
+
+        # Add shared X-axis label and adjust layout
+        for ax in axs[1, :]:  # Add X-axis label only to the bottom row
+            ax.set_xlabel('Time (hours)')
+        plt.tight_layout()
+        plt.show()
+
+        """
+
 
     # Save the variables in a dataframe for easier parsing
     def create_dataframes(self):
