@@ -137,6 +137,7 @@ class logDataGatherer():
         self.salinity = []
         self.turbidity = []
         self.chloro = []
+        self.pressure = []
         self.name = 'NoName'
         self.cols = []
 
@@ -288,6 +289,12 @@ class logDataGatherer():
         src_ent = msg._header.src_ent
         temp = [time, src_ent, msg.value]
         self.temperature.append(temp)
+
+    def update_pressure(self, msg, callback):
+
+        time = msg._header.timestamp
+        press = [time, msg.value]
+        self.pressure.append(press)
         
     def update_state(self, msg, callback):
         
@@ -361,6 +368,9 @@ class logDataGatherer():
  
         self.df_temperatures = pd.DataFrame(self.temperature, columns=['TIME','SRC_ENT', 'TEMP'])
         self.df_temperatures = self.df_temperatures.sort_values(by='TIME')
+        
+        self.df_pressure = pd.DataFrame(self.pressure, columns=['TIME', 'PRES'])
+        self.df_pressure =  self.df_pressure.sort_values(by='TIME')
 
         self.df_conductivity = pd.DataFrame(self.conductivity, columns=['TIME','SRC_ENT', 'CNDC'])
         self.df_conductivity = self.df_conductivity.sort_values(by='TIME')
@@ -381,13 +391,13 @@ class logDataGatherer():
     # Merge all data into a single dataframe for later filtering
     def merge_data(self):
 
-        self.cols = ['TIME','LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PTCH', 'HDNG', 'APSA', 'APDA', 'TEMP', 'CNDC', 'SVEL', 'PSAL', 'MEDIUM']
+        self.cols = ['TIME','LATITUDE', 'LONGITUDE', 'DEPH', 'ROLL', 'PTCH', 'HDNG', 'APSA', 'APDA', 'TEMP', 'CNDC', 'SVEL', 'PSAL', 'MEDIUM', 'PRES']
         
         # Do a sanity check and look for the sensor gathering oceanographic data
         # Also merge data by lowest frequency data which seems to always be the sound speed variable
         if self.df_sound_speed.isnull().all().all():
             print("NO SOUND SPEED FOUND")
-
+        
         if self.df_conductivity.isnull().all().all():
             print("NO CONDUCTIVITY FOUND")
 
@@ -421,6 +431,12 @@ class logDataGatherer():
             self.df_all_data = pd.merge_asof(self.df_all_data, self.df_salinity, on='TIME',
                                             direction='nearest', suffixes=('_df1', '_df2'))
             
+        if self.df_pressure.isnull().all().all():
+            print("NO PRESSURE FOUND")
+        
+        else: 
+            self.df_all_data = pd.merge_asof(self.df_all_data, self.df_pressure, on='TIME',
+                                            direction='nearest', suffixes=('_df1', '_df2'))            
         if self.name == 'lauv-xplore-2':
         
             if self.df_chloro.isnull().all().all():
